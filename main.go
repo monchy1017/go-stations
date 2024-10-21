@@ -54,10 +54,11 @@ func realMain() error {
 
 	// Recoveryミドルウェアでラップして、panicが発生してもアプリケーションがクラッシュしないようにする
 	// サーバーに渡すmuxを、Recoveryミドルウェアでラップする
-	wrapperMux := middleware.Recovery(mux)
+	// AddOSContextミドルウェアでラップして、OS情報をリクエストコンテキストに格納する
+	wrappedMux := middleware.AddOSContext(middleware.Recovery(mux))
 
 	// サーバーをlistenする
-	err = http.ListenAndServe(port, wrapperMux)
+	err = http.ListenAndServe(port, wrappedMux)
 	if err != nil {
 		return err
 	}

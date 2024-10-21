@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/TechBowl-japan/go-stations/handler"
 	"github.com/TechBowl-japan/go-stations/handler/middleware"
@@ -18,6 +19,10 @@ func NewRouter(todoDB *sql.DB) *http.ServeMux {
 	// register routes
 	mux := http.NewServeMux()
 
+	// Basic認証情報を取得
+	basicAuthUserID := os.Getenv("BASIC_AUTH_USER_ID")
+	basicAuthPassword := os.Getenv("BASIC_AUTH_PASSWORD")
+
 	// /healthzエンドポイントを登録
 	healthzHnadler := &handler.HealthzHandler{}
 	mux.Handle("/healthz", healthzHnadler)
@@ -25,9 +30,9 @@ func NewRouter(todoDB *sql.DB) *http.ServeMux {
 	// TODOService インスタンスを作成
 	todoService := &service.TODOService{DB: todoDB}
 
-	// /todos エンドポイントを登録
+	// /todos エンドポイントを登録(ミドルウェアでBasic認証を追加, station04)
 	todoHandler := &handler.TODOHandler{SVC: todoService}
-	mux.Handle("/todos", todoHandler)
+	mux.Handle("/todos", middleware.BasicAuth(basicAuthUserID, basicAuthPassword, todoHandler))
 
 	// /do-panic エンドポイントを登録
 	mux.HandleFunc("/do-panic", middleware.PanicHandler)

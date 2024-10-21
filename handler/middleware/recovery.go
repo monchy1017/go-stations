@@ -89,3 +89,18 @@ func LoggingMiddleware(h http.Handler) http.Handler {
 		log.Println(string(logDataJSON))
 	})
 }
+
+func BasicAuth(validUser, validPassword string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// BasicAuthメソッドを使ってユーザー名とパスワードを取得
+		user, password, ok := r.BasicAuth()
+		if !ok || user != validUser || password != validPassword {
+			//認証に失敗したらHTTPステータスコード401を返す
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		// 認証に成功したら次のハンドラを呼び出す
+		h.ServeHTTP(w, r)
+	})
+}

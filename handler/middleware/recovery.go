@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/mileusna/useragent"
 )
@@ -12,6 +14,13 @@ import (
 type Contextkey struct{}
 
 var OSContextKey = &Contextkey{}
+
+type LogData struct {
+	Timestamp time.Time `json:"timestamp"`
+	Latency   int64     `json:"latency"` // ミリ秒単位で処理時間を記録
+	Path      string    `json:"path"`    // リクエストのURLパス
+	OS        string    `json:"os"`      // OS情報
+}
 
 func Recovery(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -49,5 +58,34 @@ func AddOSContext(h http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), OSContextKey, os)
 		// fmt.Printf("os: %v\n", os)
 		h.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func LoggingMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+		h.ServeHTTP(w, r)
+		endTime := time.Now()
+		latency := endTime.Sub(startTime).Microseconds()
+		path := r.URL.Path
+
+		osInfo := r.Context().Value(OSContextKey)
+		if osInfo == nil {
+			osInfo = "unknown OS"
+		}
+
+		logData := LogData{
+			Timestamp: startTime,
+			Latency:   latency,
+			Path:      path,
+			OS:        osInfo.(string),
+		}
+
+		logDataJSON, err := json.Marshal(logData)
+		if err != nil {
+			log.Printf("failed to marshal log data: %v", err)
+			return
+		}
+		log.Println(string(logDataJSON))
 	})
 }

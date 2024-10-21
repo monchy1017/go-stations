@@ -52,10 +52,10 @@ func realMain() error {
 	// NOTE: 新しいエンドポイントの登録はrouter.NewRouterの内部で行うようにする
 	mux := router.NewRouter(todoDB)
 
-	// Recoveryミドルウェアでラップして、panicが発生してもアプリケーションがクラッシュしないようにする
-	// サーバーに渡すmuxを、Recoveryミドルウェアでラップする
-	// AddOSContextミドルウェアでラップして、OS情報をリクエストコンテキストに格納する
-	wrappedMux := middleware.AddOSContext(middleware.Recovery(mux))
+	// サーバーに渡すmuxを、Recoveryミドルウェアでラップする(station01)
+	// AddOSContextミドルウェアでラップして、OS情報をリクエストコンテキストに格納する(station02)
+	// LoggingMiddlewareミドルウェアでラップして、リクエストのログを出力する(station03)
+	wrappedMux := middleware.AddOSContext(middleware.LoggingMiddleware(middleware.Recovery(mux)))
 
 	// サーバーをlistenする
 	err = http.ListenAndServe(port, wrappedMux)

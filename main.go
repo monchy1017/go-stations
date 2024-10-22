@@ -81,33 +81,33 @@ func realMain() error {
 		Handler: wrappedMux,
 	}
 
-	// シグナルハンドリング
+	// ①os/signalでシグナルを受け取り、Contextをキャンセルする
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop() // deferでstopを呼び出すことで、プログラムが終了する際にシグナルの監視を終了する
+	defer stop() //リソース解放
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(1) //サーバー起動時にwgインクリメント
 	go func() {
-		defer wg.Done() // 終了時にwg.Done()を呼び出す
+		defer wg.Done() // 終了時にwgデクリメント
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("server.ListenAndServe: %v", err)
 		}
 	}()
 
-	// シグナルを待機
-	<-ctx.Done()
+	<-ctx.Done() //シグナルを受け取るまで待機, ②ctx.Done()が返すということはシグナルを受け取ったということ
 	log.Println("Server is shutting down...")
-	stop() // シグナルの監視を終了
+	stop()
 
 	// シャットダウンのタイムアウトを設定
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// ③既存のリクエストを処理してからサーバーをシャットダウン
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("server.Shutdown: %v", err)
 	}
 
-	// 全てのgoroutineが終了するまで待機
+	// ④全てのgoroutineが終了するまで待機
 	wg.Wait()
 	log.Println("Server exited gracefully")
 

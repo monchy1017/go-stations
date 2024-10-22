@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/TechBowl-japan/go-stations/db"
@@ -70,10 +74,42 @@ func realMain() error {
 	// LoggingMiddlewareミドルウェアでラップして、リクエストのログを出力する(station03)
 	wrappedMux := middleware.AddOSContext(middleware.LoggingMiddleware(middleware.Recovery(mux)))
 
-	// サーバーをlistenする
-	err = http.ListenAndServe(port, wrappedMux)
-	if err != nil {
-		return err
+	//以下 graceful shutdownのためのコード
+
+	server := &http.Server{
+		Addr:    port,
+		Handler: wrappedMux,
 	}
+
+	// シグナルハンドリング
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop() // deferでstopを呼び出すことで、プログラムが終了する際にシグナルの監視を終了する
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done() // 終了時にwg.Done()を呼び出す
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("server.ListenAndServe: %v", err)
+		}
+	}()
+
+	// シグナルを待機
+	<-ctx.Done()
+	log.Println("Server is shutting down...")
+	stop() // シグナルの監視を終了
+
+	// シャットダウンのタイムアウトを設定
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("server.Shutdown: %v", err)
+	}
+
+	// 全てのgoroutineが終了するまで待機
+	wg.Wait()
+	log.Println("Server exited gracefully")
+
 	return nil
 }

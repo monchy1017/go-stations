@@ -74,7 +74,7 @@ func realMain() error {
 	// LoggingMiddlewareミドルウェアでラップして、リクエストのログを出力する(station03)
 	wrappedMux := middleware.AddOSContext(middleware.LoggingMiddleware(middleware.Recovery(mux)))
 
-	//以下 graceful shutdownのためのコード
+	//-----以下 graceful shutdownのためのコード-----
 
 	server := &http.Server{
 		Addr:    port,
@@ -98,7 +98,7 @@ func realMain() error {
 	log.Println("Server is shutting down...")
 	stop()
 
-	// シャットダウンのタイムアウトを設定
+	// シャットダウンのタイムアウトを設定(shutdownCtx: 5秒以内ではキャンセルされず終了、それ以降は処理を待たずに強制終了)
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

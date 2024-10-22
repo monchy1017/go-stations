@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/TechBowl-japan/go-stations/model"
 )
@@ -20,6 +21,7 @@ func (h *HealthzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := &model.HealthzResponse{
 		Message: "OK",
 	}
+	time.Sleep(5 * time.Second)
 
 	encoder := json.NewEncoder(w)
 
